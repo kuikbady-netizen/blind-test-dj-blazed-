@@ -1,0 +1,1 @@
+- [OpenAPI codegen quirks](openapi-codegen-quirks.md) — Orval needs DOM iterable typings and can emit duplicate Zod/type names for path parameters.

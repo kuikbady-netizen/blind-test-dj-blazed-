@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: blind-tests
+    description: Sessions de blind test en direct
 paths:
   /healthz:
     get:
@@ -24,6 +26,215 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /blind-tests:
+    post:
+      operationId: createBlindTest
+      tags: [blind-tests]
+      summary: Créer une session de blind test
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BlindTestInput"
+      responses:
+        "201":
+          description: Session créée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlindTestCreated"
+  /blind-tests/{roomCode}:
+    get:
+      operationId: getBlindTest
+      tags: [blind-tests]
+      summary: Consulter une session et son classement
+      parameters:
+        - name: roomCode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session et classement à jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlindTest"
+        "404":
+          description: Salle introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /blind-tests/{roomCode}/host:
+    get:
+      operationId: getHostBlindTest
+      tags: [blind-tests]
+      summary: Consulter une session en tant que DJ
+      parameters:
+        - name: roomCode
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: hostToken
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session complète pour la régie
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlindTest"
+  /blind-tests/{roomCode}/players:
+    post:
+      operationId: joinBlindTest
+      tags: [blind-tests]
+      summary: Rejoindre une session avec un pseudo
+      parameters:
+        - name: roomCode
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinPlayerInput"
+      responses:
+        "201":
+          description: Joueur ajouté à la salle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerJoined"
+  /blind-tests/{roomCode}/players/heartbeat:
+    post:
+      operationId: heartbeatBlindTestPlayer
+      tags: [blind-tests]
+      summary: Signaler la présence active d'un joueur
+      parameters:
+        - name: roomCode
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlayerHeartbeatInput"
+      responses:
+        "200":
+          description: Présence actualisée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HeartbeatResponse"
+  /blind-tests/{roomCode}/rounds:
+    post:
+      operationId: startBlindTestRound
+      tags: [blind-tests]
+      summary: Lancer une manche avec la réponse attendue
+      parameters:
+        - name: roomCode
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartRoundInput"
+      responses:
+        "200":
+          description: Manche démarrée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlindTest"
+  /blind-tests/{roomCode}/rounds/end:
+    post:
+      operationId: endBlindTestRound
+      tags: [blind-tests]
+      summary: Terminer la manche en cours
+      parameters:
+        - name: roomCode
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HostActionInput"
+      responses:
+        "200":
+          description: Manche terminée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlindTest"
+  /blind-tests/{roomCode}/answers:
+    post:
+      operationId: submitBlindTestAnswer
+      tags: [blind-tests]
+      summary: Envoyer la réponse d'un joueur
+      parameters:
+        - name: roomCode
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitAnswerInput"
+      responses:
+        "201":
+          description: Réponse enregistrée avec son horodatage et son score
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerResult"
+  /blind-tests/{roomCode}/end:
+    post:
+      operationId: closeBlindTest
+      tags: [blind-tests]
+      summary: Terminer la session
+      parameters:
+        - name: roomCode
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HostActionInput"
+      responses:
+        "200":
+          description: Session terminée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlindTest"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +244,191 @@ components:
           type: string
       required:
         - status
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    BlindTestInput:
+      type: object
+      properties:
+        djName:
+          type: string
+          minLength: 1
+          maxLength: 40
+      required: [djName]
+    JoinPlayerInput:
+      type: object
+      properties:
+        nickname:
+          type: string
+          minLength: 1
+          maxLength: 24
+      required: [nickname]
+    PlayerHeartbeatInput:
+      type: object
+      properties:
+        playerToken:
+          type: string
+      required: [playerToken]
+    StartRoundInput:
+      type: object
+      properties:
+        hostToken:
+          type: string
+        artist:
+          type: string
+          minLength: 1
+          maxLength: 100
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+      required: [hostToken, artist, title]
+    HostActionInput:
+      type: object
+      properties:
+        hostToken:
+          type: string
+      required: [hostToken]
+    SubmitAnswerInput:
+      type: object
+      properties:
+        playerToken:
+          type: string
+        artist:
+          type: string
+          minLength: 1
+          maxLength: 100
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+      required: [playerToken, artist, title]
+    Player:
+      type: object
+      properties:
+        id:
+          type: string
+        nickname:
+          type: string
+        joinedAt:
+          type: string
+          format: date-time
+      required: [id, nickname, joinedAt]
+    LeaderboardEntry:
+      type: object
+      properties:
+        playerId:
+          type: string
+        nickname:
+          type: string
+        points:
+          type: integer
+        rank:
+          type: integer
+      required: [playerId, nickname, points, rank]
+    Answer:
+      type: object
+      properties:
+        id:
+          type: string
+        playerId:
+          type: string
+        nickname:
+          type: string
+        artist:
+          type: string
+        title:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+        correct:
+          type: boolean
+        points:
+          type: integer
+      required: [id, playerId, nickname, artist, title, submittedAt, correct, points]
+    Round:
+      type: object
+      properties:
+        number:
+          type: integer
+        status:
+          type: string
+          enum: [live, ended]
+        artist:
+          type: ["string", "null"]
+        title:
+          type: ["string", "null"]
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: ["string", "null"]
+          format: date-time
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Answer"
+      required: [number, status, artist, title, startedAt, endedAt, answers]
+    BlindTest:
+      type: object
+      properties:
+        roomCode:
+          type: string
+        djName:
+          type: string
+        status:
+          type: string
+          enum: [lobby, playing, ended]
+        createdAt:
+          type: string
+          format: date-time
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/Player"
+        leaderboard:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaderboardEntry"
+        currentRound:
+          anyOf:
+            - $ref: "#/components/schemas/Round"
+            - type: "null"
+        roundCount:
+          type: integer
+      required: [roomCode, djName, status, createdAt, players, leaderboard, currentRound, roundCount]
+    BlindTestCreated:
+      type: object
+      properties:
+        session:
+          $ref: "#/components/schemas/BlindTest"
+        hostToken:
+          type: string
+      required: [session, hostToken]
+    PlayerJoined:
+      type: object
+      properties:
+        session:
+          $ref: "#/components/schemas/BlindTest"
+        playerToken:
+          type: string
+      required: [session, playerToken]
+    HeartbeatResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required: [ok]
+    AnswerResult:
+      type: object
+      properties:
+        answer:
+          $ref: "#/components/schemas/Answer"
+        message:
+          type: string
+      required: [answer, message]
 

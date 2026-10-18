@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Blind Test by DJ BLAZED"
+description = "Un jeu de blind test musical en direct pour les bars : le DJ gère les sessions et les manches, tandis que les joueurs rejoignent par QR code ou code de salle et répondent depuis leur téléphone."
+version = "1.0.0"
+id = "artifacts/blind-test"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19363
+
+[services.development]
+run = "pnpm --filter @workspace/blind-test run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/blind-test", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/blind-test/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19363"
+BASE_PATH = "/"
