@@ -17,8 +17,10 @@ Dans Replit, lance le projet avec **Run**. Le serveur de l’application et l’
 
 Le premier joueur à répondre correctement reçoit 1 000 points. Les réponses correctes suivantes rapportent 100 points de moins, jusqu’au minimum de 100 points. Une réponse n’est acceptée qu’une fois par joueur et par manche.
 
-## Limites de ce prototype
+## Stockage et fonctionnement en direct
 
-- Les sessions actives sont gardées en mémoire par le serveur : elles sont partagées entre les appareils, mais disparaissent si le serveur redémarre.
-- Les joueurs actifs sont détectés par un signal de présence périodique ; un joueur absent est retiré de la liste après environ une minute.
+- Les salles, les joueurs, les réponses et les scores sont stockés dans la base PostgreSQL du projet. Ils sont donc partagés entre les appareils, navigateurs, réseaux et instances de l’API, et ne disparaissent pas au redémarrage du serveur.
+- En développement, si le schéma de la base n’est pas encore installé, lance une fois `pnpm --filter @workspace/db run push`. Lors de la publication, Replit applique le schéma de développement à la base de production.
+- La régie et les joueurs actualisent leur état environ chaque seconde. La liste des joueurs actifs utilise un signal de présence ; un joueur absent est retiré de cette liste après environ une minute. Son score reste au classement.
+- Les salles créées avec l’ancienne version, qui ne les gardait qu’en mémoire, ne peuvent pas être récupérées après la mise à jour. Après avoir publié cette correction, crée une nouvelle salle et partage son nouveau code.
 - Le DJ diffuse le son depuis son propre logiciel. L’application ne téléverse, ne stocke, ne lit ni ne diffuse de musique.
