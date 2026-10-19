@@ -20,6 +20,7 @@ Le premier joueur à répondre correctement reçoit 1 000 points. Les réponses 
 ## Stockage et fonctionnement en direct
 
 - Les salles, les joueurs, les réponses et les scores sont stockés dans la base PostgreSQL du projet. Ils sont donc partagés entre les appareils, navigateurs, réseaux et instances de l’API, et ne disparaissent pas au redémarrage du serveur.
+- L’aperçu de développement et l’application publiée utilisent des bases séparées. Pour une partie réelle, le DJ et les joueurs doivent ouvrir la même URL publiée. Le QR code reprend automatiquement l’adresse ouverte par le DJ.
 - En développement, si le schéma de la base n’est pas encore installé, lance une fois `pnpm --filter @workspace/db run push`. Lors de la publication, Replit applique le schéma de développement à la base de production.
 - La régie et les joueurs actualisent leur état environ chaque seconde. La liste des joueurs actifs utilise un signal de présence ; un joueur absent est retiré de cette liste après environ une minute. Son score reste au classement.
 - Les salles créées avec l’ancienne version, qui ne les gardait qu’en mémoire, ne peuvent pas être récupérées après la mise à jour. Après avoir publié cette correction, crée une nouvelle salle et partage son nouveau code.

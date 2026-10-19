@@ -51,6 +51,10 @@ function tokenHash(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
+function normalizeRoomCode(value: string): string {
+  return value.trim().toUpperCase().replace(/[\s-]/g, "");
+}
+
 function normalizeAnswer(value: string): string {
   return value
     .normalize("NFD")
@@ -205,7 +209,7 @@ router.get("/blind-tests/:roomCode", async (req, res): Promise<void> => {
     return;
   }
   const session = await readSessionView(
-    parsedParams.data.roomCode.toUpperCase(),
+    normalizeRoomCode(parsedParams.data.roomCode),
     false,
   );
   if (!session) {
@@ -223,7 +227,7 @@ router.get("/blind-tests/:roomCode/host", async (req, res): Promise<void> => {
     return;
   }
 
-  const roomCode = parsedParams.data.roomCode.toUpperCase();
+  const roomCode = normalizeRoomCode(parsedParams.data.roomCode);
   const session = await readSession(roomCode);
   if (!session) {
     res.status(404).json({ error: "Cette salle n’existe pas." });
@@ -250,7 +254,7 @@ router.post(
       return;
     }
 
-    const roomCode = parsedParams.data.roomCode.toUpperCase();
+    const roomCode = normalizeRoomCode(parsedParams.data.roomCode);
     const nickname = parsedBody.data.nickname.trim();
     if (!nickname) {
       res.status(400).json({ error: "Choisis un pseudo." });
@@ -332,7 +336,7 @@ router.post(
         and(
           eq(
             blindTestPlayersTable.roomCode,
-            parsedParams.data.roomCode.toUpperCase(),
+            normalizeRoomCode(parsedParams.data.roomCode),
           ),
           eq(
             blindTestPlayersTable.playerTokenHash,
@@ -358,7 +362,7 @@ router.post(
       res.status(400).json({ error: "Renseigne le titre et l’artiste." });
       return;
     }
-    const roomCode = parsedParams.data.roomCode.toUpperCase();
+    const roomCode = normalizeRoomCode(parsedParams.data.roomCode);
     const { artist, title, hostToken } = parsedBody.data;
     if (!artist.trim() || !title.trim()) {
       res.status(400).json({ error: "Renseigne le titre et l’artiste." });
@@ -432,7 +436,7 @@ router.post(
       res.status(400).json({ error: "Action de régie invalide." });
       return;
     }
-    const roomCode = parsedParams.data.roomCode.toUpperCase();
+    const roomCode = normalizeRoomCode(parsedParams.data.roomCode);
 
     const result = await db.transaction<RouteResult<null>>(async (tx) => {
       const [session] = await tx
@@ -486,7 +490,7 @@ router.post(
       res.status(400).json({ error: "Renseigne l’artiste et le titre." });
       return;
     }
-    const roomCode = parsedParams.data.roomCode.toUpperCase();
+    const roomCode = normalizeRoomCode(parsedParams.data.roomCode);
     const submittedAt = new Date();
     const playerTokenHash = tokenHash(parsedBody.data.playerToken);
 
@@ -609,7 +613,7 @@ router.post(
       res.status(400).json({ error: "Action de régie invalide." });
       return;
     }
-    const roomCode = parsedParams.data.roomCode.toUpperCase();
+    const roomCode = normalizeRoomCode(parsedParams.data.roomCode);
 
     const result = await db.transaction<RouteResult<null>>(async (tx) => {
       const [session] = await tx

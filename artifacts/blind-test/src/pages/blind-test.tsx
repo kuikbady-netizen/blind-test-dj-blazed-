@@ -26,6 +26,11 @@ const playerKey = (roomCode: string) => `blazed:player:${roomCode}`;
 const playerIdKey = (roomCode: string) => `blazed:player-id:${roomCode}`;
 const nicknameKey = (roomCode: string) => `blazed:nickname:${roomCode}`;
 const submissionKey = (roomCode: string) => `blazed:submission:${roomCode}`;
+const isDevelopmentPreview = import.meta.env.DEV;
+
+function normalizeRoomCode(value: string): string {
+  return value.trim().toUpperCase().replace(/[\s-]/g, '');
+}
 
 function Brand({ light = false }: { light?: boolean }) {
   return (
@@ -105,7 +110,7 @@ function HomePage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get('room')?.trim().toUpperCase();
+    const code = normalizeRoomCode(params.get('room') ?? '');
     if (code) setLocation(`/room/${encodeURIComponent(code)}`);
   }, [setLocation]);
 
@@ -129,7 +134,7 @@ function HomePage() {
 
   const join = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const code = roomCode.trim().toUpperCase();
+    const code = normalizeRoomCode(roomCode);
     if (!code) { setFormError('Saisis le code affiché par le DJ.'); return; }
     setLocation(`/room/${encodeURIComponent(code)}`);
   };
@@ -145,6 +150,9 @@ function HomePage() {
       </section>
       <section className="home-panel" aria-label="Créer ou rejoindre une salle">
         <div className="panel-kicker">01 / En régie</div>
+        {isDevelopmentPreview && <div className="notice" style={{ margin: '0 0 18px' }} role="note">
+          Aperçu de développement : ses salles sont séparées de celles de l’application publiée. Pour une partie avec les joueurs sur l’URL publique, ouvrez cette URL publiée sur le Mac du DJ et créez la salle depuis là.
+        </div>}
         <h2 className="panel-heading">Lancer une session</h2>
         <form className="form-stack" onSubmit={create}>
           <label>
@@ -190,7 +198,8 @@ function RankBoard({ session }: { session: BlindTest }) {
 }
 
 function HostPage() {
-  const { roomCode = '' } = useParams();
+  const { roomCode: routeRoomCode = '' } = useParams();
+  const roomCode = normalizeRoomCode(routeRoomCode);
   const queryClient = useQueryClient();
   const [hostToken] = useState(() => sessionStorage.getItem(hostKey(roomCode)) ?? '');
   const [artist, setArtist] = useState('');
@@ -257,6 +266,9 @@ function HostPage() {
       </header>
       {notice && <div className="notice" style={{ marginBottom: 16 }} role="status" data-testid="status-host-notice">{notice}</div>}
       {formError && <div className="notice" style={{ marginBottom: 16, borderColor: '#ff988a', color: '#ffb7a7' }} role="alert" data-testid="status-host-error">{formError}</div>}
+      {isDevelopmentPreview && <div className="notice" style={{ marginBottom: 16 }} role="note">
+        Cette salle est dans la base de développement. Les joueurs qui ouvrent l’URL publiée ne la trouveront pas. Pour jouer en public, ouvrez l’URL publiée sur le Mac et créez une nouvelle salle depuis cette adresse.
+      </div>}
       <div className="host-grid">
         <div className="round-controls">
           <section className="round-banner">
@@ -335,7 +347,8 @@ function HostPage() {
 }
 
 function PlayerPage() {
-  const { roomCode = '' } = useParams();
+  const { roomCode: routeRoomCode = '' } = useParams();
+  const roomCode = normalizeRoomCode(routeRoomCode);
   const queryClient = useQueryClient();
   const [nickname, setNickname] = useState(() => sessionStorage.getItem(nicknameKey(roomCode)) ?? '');
   const [playerToken, setPlayerToken] = useState(() => sessionStorage.getItem(playerKey(roomCode)) ?? '');
