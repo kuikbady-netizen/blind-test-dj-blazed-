@@ -6,16 +6,22 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface SubmitAnswerInput {
-  playerToken: string;
-  /**
-     * @minLength 1
-     * @maxLength 100
-     */
+export type SubmitAnswerInput = ({
+  /** @minLength 1 */
   artist: string;
-  /**
-     * @minLength 1
-     * @maxLength 100
-     */
+} & {
+  playerToken: string;
+  /** @maxLength 100 */
+  artist?: string;
+  /** @maxLength 100 */
+  title?: string;
+}) | ({
+  /** @minLength 1 */
   title: string;
-}
+} & {
+  playerToken: string;
+  /** @maxLength 100 */
+  artist?: string;
+  /** @maxLength 100 */
+  title?: string;
+});

@@ -299,13 +299,22 @@ components:
           type: string
         artist:
           type: string
-          minLength: 1
           maxLength: 100
         title:
           type: string
-          minLength: 1
           maxLength: 100
-      required: [playerToken, artist, title]
+      required: [playerToken]
+      anyOf:
+        - required: [artist]
+          properties:
+            artist:
+              type: string
+              minLength: 1
+        - required: [title]
+          properties:
+            title:
+              type: string
+              minLength: 1
     Player:
       type: object
       properties:

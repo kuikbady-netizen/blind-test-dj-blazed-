@@ -63,6 +63,13 @@ function submittedTime(value: Date | string) {
   }).format(value instanceof Date ? value : new Date(value));
 }
 
+function answerSummary(artist: string, title: string) {
+  return [
+    artist.trim() ? `Artiste : ${artist.trim()}` : '',
+    title.trim() ? `Titre : ${title.trim()}` : '',
+  ].filter(Boolean).join(' · ');
+}
+
 function readStoredSubmission(roomCode: string) {
   try {
     const stored = sessionStorage.getItem(submissionKey(roomCode));
@@ -279,8 +286,25 @@ function HostPage() {
           {isLive ? <section className="surface">
             <header className="surface-head"><h2 className="surface-title">Manche en direct</h2><span className="status-pill"><i className="status-dot" />En direct</span></header>
             <div className="surface-content">
-              <div className="notice">Réponse masquée pendant la manche. Les réponses des joueurs ne sont jamais affichées ici avant la fin.</div>
-              <p className="tiny-note" style={{ margin: '14px 0 18px' }}>{session.currentRound?.answers?.length ?? 0} réponse(s) reçue(s) sur {session.players.length} joueurs.</p>
+              <div className="notice">Les réponses individuelles sont visibles uniquement dans la régie. Elles restent cachées aux joueurs pendant la manche.</div>
+              <div style={{ margin: '14px 0 18px' }}>
+                <div className="field-label" style={{ marginBottom: 8 }}>
+                  Réponses reçues · {session.currentRound?.answers?.length ?? 0}/{session.players.length}
+                </div>
+                {session.currentRound?.answers?.length ? session.currentRound.answers.map((answer) => (
+                  <div className="answer-row" key={answer.id} data-testid={`row-host-answer-${answer.id}`}>
+                    <div>
+                      <strong>{answer.nickname}</strong><br />
+                      <span>{answerSummary(answer.artist, answer.title)}</span><br />
+                      <span className="tiny-note">Envoyée à {submittedTime(answer.submittedAt)}</span>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <strong style={{ color: answer.correct ? 'var(--gold)' : '#aaa9ad' }}>{answer.points} pts</strong><br />
+                      <span className="tiny-note">{answer.correct ? 'Correcte' : 'Incorrecte'}</span>
+                    </div>
+                  </div>
+                )) : <p className="tiny-note" data-testid="text-no-live-answers">Aucune réponse pour le moment. Les nouvelles réponses apparaîtront ici.</p>}
+              </div>
               <button className="gold-button" onClick={finishRound} disabled={endRound.isPending} data-testid="button-end-round">
                 {endRound.isPending ? <LoaderCircle size={17} /> : <Check size={17} />} Terminer la manche
               </button>
@@ -309,7 +333,7 @@ function HostPage() {
                 : <p className="tiny-note">La réponse n’est pas disponible dans les données renvoyées.</p>}
               {session.currentRound.answers?.length > 0 && <div style={{ marginTop: 18 }}>
                 {session.currentRound.answers.map((answer) => <div className="answer-row" key={answer.id}>
-                  <div><strong>{answer.nickname}</strong><br /><span>{answer.artist} — {answer.title}</span><br /><span className="tiny-note">Envoyée à {submittedTime(answer.submittedAt)}</span></div>
+                  <div><strong>{answer.nickname}</strong><br /><span>{answerSummary(answer.artist, answer.title)}</span><br /><span className="tiny-note">Envoyée à {submittedTime(answer.submittedAt)}</span></div>
                   <strong style={{ color: answer.correct ? 'var(--gold)' : '#aaa9ad' }}>{answer.points} pts</strong>
                 </div>)}
               </div>}
@@ -432,9 +456,14 @@ function PlayerPage() {
     if (!playerToken) { setFormError('Rejoins la salle avant de proposer une réponse.'); return; }
     const cleanArtist = artist.trim();
     const cleanTitle = title.trim();
-    if (!cleanArtist || !cleanTitle) { setFormError('Complète l’artiste et le titre.'); return; }
+    if (!cleanArtist && !cleanTitle) { setFormError('Renseigne au moins l’artiste ou le titre.'); return; }
     setFormError('');
-    sendAnswer.mutate({ roomCode, data: { playerToken, artist: cleanArtist, title: cleanTitle } }, {
+    const submission = cleanArtist
+      ? cleanTitle
+        ? { playerToken, artist: cleanArtist, title: cleanTitle }
+        : { playerToken, artist: cleanArtist }
+      : { playerToken, title: cleanTitle };
+    sendAnswer.mutate({ roomCode, data: submission }, {
       onSuccess: (result) => {
         setAnswerResult(result);
         setPlayerId(result.answer.playerId);
@@ -489,10 +518,10 @@ function PlayerPage() {
             <div className="confirmation-mark"><Check size={25} /></div>
             <h2>Réponse envoyée.</h2>
             <p>{answerResult?.message || 'C’est noté. Reste prêt pour le verdict du DJ.'}</p>
-            <div className="result-line"><span>Artiste proposé</span><strong>{myAnswer?.artist}</strong></div>
-            <div className="result-line"><span>Titre proposé</span><strong>{myAnswer?.title}</strong></div>
+            {myAnswer?.artist && <div className="result-line"><span>Artiste proposé</span><strong>{myAnswer.artist}</strong></div>}
+            {myAnswer?.title && <div className="result-line"><span>Titre proposé</span><strong>{myAnswer.title}</strong></div>}
           </div> : <div style={{ marginTop: 25 }}>
-            <div className="notice" style={{ marginBottom: 19 }}>Écoute le morceau diffusé par le DJ, puis envoie ta réponse. Les réponses restent privées jusqu’à la fin de la manche.</div>
+            <div className="notice" style={{ marginBottom: 19 }}>Écoute le morceau diffusé par le DJ, puis propose le titre, l’artiste, ou les deux. Les réponses restent privées jusqu’à la fin de la manche.</div>
             <form className="player-form" onSubmit={submit}>
               <div className="answer-fields">
                 <label><span className="field-label">Artiste</span><input className="field" value={artist} onChange={(event) => setArtist(event.target.value)} maxLength={100} placeholder="Qui chante ?" data-testid="input-answer-artist" /></label>
@@ -526,7 +555,7 @@ function PlayerPage() {
             {session.currentRound.answers?.length > 0 && <div style={{ marginTop: 18 }}>
               <div className="field-label">Réponses visibles après la manche</div>
               {session.currentRound.answers.map((answer) => <div className="answer-row" key={answer.id} data-testid={`row-answer-${answer.id}`}>
-                <div><strong>{answer.nickname}</strong><br /><span>{answer.artist} — {answer.title}</span></div>
+                <div><strong>{answer.nickname}</strong><br /><span>{answerSummary(answer.artist, answer.title)}</span></div>
                 <strong style={{ color: answer.playerId === playerId ? 'var(--gold)' : '#aaa9ad' }}>{answer.points} pts</strong>
               </div>)}
               {myAnswer && <div className="notice" style={{ marginTop: 12 }}>Ta réponse : {myAnswer.correct ? 'correcte' : 'à côté'} · {myAnswer.points} point(s)</div>}

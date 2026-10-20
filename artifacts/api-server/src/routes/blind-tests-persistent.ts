@@ -487,12 +487,18 @@ router.post(
     const parsedParams = SubmitBlindTestAnswerParams.safeParse(req.params);
     const parsedBody = SubmitBlindTestAnswerBody.safeParse(req.body);
     if (!parsedParams.success || !parsedBody.success) {
-      res.status(400).json({ error: "Renseigne l’artiste et le titre." });
+      res.status(400).json({ error: "Renseigne l’artiste ou le titre." });
       return;
     }
     const roomCode = normalizeRoomCode(parsedParams.data.roomCode);
     const submittedAt = new Date();
     const playerTokenHash = tokenHash(parsedBody.data.playerToken);
+    const artist = parsedBody.data.artist?.trim() ?? "";
+    const title = parsedBody.data.title?.trim() ?? "";
+    if (!artist && !title) {
+      res.status(400).json({ error: "Renseigne l’artiste ou le titre." });
+      return;
+    }
 
     const result = await db.transaction<
       RouteResult<{ answer: StoredBlindTestAnswer; message: string }>
@@ -542,10 +548,10 @@ router.post(
       }
 
       const correct =
-        normalizeAnswer(parsedBody.data.artist) ===
-          normalizeAnswer(currentRound.artist) &&
-        normalizeAnswer(parsedBody.data.title) ===
-          normalizeAnswer(currentRound.title);
+        (!artist ||
+          normalizeAnswer(artist) === normalizeAnswer(currentRound.artist)) &&
+        (!title ||
+          normalizeAnswer(title) === normalizeAnswer(currentRound.title));
       const correctAnswers = currentRound.answers.filter(
         (answer) => answer.correct,
       ).length;
@@ -554,8 +560,8 @@ router.post(
         id: randomUUID(),
         playerId: player.id,
         nickname: player.nickname,
-        artist: parsedBody.data.artist.trim(),
-        title: parsedBody.data.title.trim(),
+        artist,
+        title,
         submittedAt: submittedAt.toISOString(),
         correct,
         points,

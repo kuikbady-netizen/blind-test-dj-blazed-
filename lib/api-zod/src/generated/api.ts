@@ -348,17 +348,23 @@ export const SubmitBlindTestAnswerParams = zod.object({
   "roomCode": zod.coerce.string()
 })
 
-export const submitBlindTestAnswerBodyArtistMax = 100;
-
-export const submitBlindTestAnswerBodyTitleMax = 100;
 
 
+export const submitBlindTestAnswerBodyThreeArtistMax = 100;
 
-export const SubmitBlindTestAnswerBody = zod.object({
+export const submitBlindTestAnswerBodyThreeTitleMax = 100;
+
+
+
+export const SubmitBlindTestAnswerBody = zod.union([zod.object({
+  "artist": zod.string().min(1)
+}),zod.object({
+  "title": zod.string().min(1)
+})]).and(zod.object({
   "playerToken": zod.string(),
-  "artist": zod.string().min(1).max(submitBlindTestAnswerBodyArtistMax),
-  "title": zod.string().min(1).max(submitBlindTestAnswerBodyTitleMax)
-})
+  "artist": zod.string().max(submitBlindTestAnswerBodyThreeArtistMax).optional(),
+  "title": zod.string().max(submitBlindTestAnswerBodyThreeTitleMax).optional()
+}))
 
 export const SubmitBlindTestAnswerResponse = zod.object({
   "answer": zod.object({
