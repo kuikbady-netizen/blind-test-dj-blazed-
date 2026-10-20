@@ -172,10 +172,13 @@ export const JoinBlindTestParams = zod.object({
 
 export const joinBlindTestBodyNicknameMax = 24;
 
+export const joinBlindTestBodyPlayerTokenMax = 128;
+
 
 
 export const JoinBlindTestBody = zod.object({
-  "nickname": zod.string().min(1).max(joinBlindTestBodyNicknameMax)
+  "nickname": zod.string().min(1).max(joinBlindTestBodyNicknameMax),
+  "playerToken": zod.string().min(1).max(joinBlindTestBodyPlayerTokenMax).optional()
 })
 
 export const JoinBlindTestResponse = zod.object({

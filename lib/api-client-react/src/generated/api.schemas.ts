@@ -27,6 +27,11 @@ export interface JoinPlayerInput {
      * @maxLength 24
      */
   nickname: string;
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  playerToken?: string;
 }
 
 export interface PlayerHeartbeatInput {

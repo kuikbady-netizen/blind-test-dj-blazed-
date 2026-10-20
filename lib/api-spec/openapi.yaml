@@ -109,8 +109,14 @@ paths:
             schema:
               $ref: "#/components/schemas/JoinPlayerInput"
       responses:
+        "200":
+          description: Joueur reconnu et reconnecté à sa session existante
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerJoined"
         "201":
-          description: Joueur ajouté à la salle
+          description: Nouveau joueur ajouté à la salle
           content:
             application/json:
               schema:
@@ -265,6 +271,10 @@ components:
           type: string
           minLength: 1
           maxLength: 24
+        playerToken:
+          type: string
+          minLength: 1
+          maxLength: 128
       required: [nickname]
     PlayerHeartbeatInput:
       type: object

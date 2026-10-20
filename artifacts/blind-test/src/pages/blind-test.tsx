@@ -20,6 +20,10 @@ import {
   useSubmitBlindTestAnswer,
 } from '@workspace/api-client-react';
 import type { AnswerResult, BlindTest } from '@workspace/api-client-react';
+import {
+  readPlayerIdentity,
+  storePlayerIdentity,
+} from '../lib/player-identity-storage';
 
 const hostKey = (roomCode: string) => `blazed:host:${roomCode}`;
 const playerKey = (roomCode: string) => `blazed:player:${roomCode}`;
@@ -30,6 +34,13 @@ const isDevelopmentPreview = import.meta.env.DEV;
 
 function normalizeRoomCode(value: string): string {
   return value.trim().toUpperCase().replace(/[\s-]/g, '');
+}
+
+function normalizeNickname(value: string): string {
+  return value.normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, '');
 }
 
 function Brand({ light = false }: { light?: boolean }) {
@@ -374,9 +385,9 @@ function PlayerPage() {
   const { roomCode: routeRoomCode = '' } = useParams();
   const roomCode = normalizeRoomCode(routeRoomCode);
   const queryClient = useQueryClient();
-  const [nickname, setNickname] = useState(() => sessionStorage.getItem(nicknameKey(roomCode)) ?? '');
-  const [playerToken, setPlayerToken] = useState(() => sessionStorage.getItem(playerKey(roomCode)) ?? '');
-  const [playerId, setPlayerId] = useState(() => sessionStorage.getItem(playerIdKey(roomCode)) ?? '');
+  const [nickname, setNickname] = useState(() => readPlayerIdentity(nicknameKey(roomCode), localStorage, sessionStorage));
+  const [playerToken, setPlayerToken] = useState(() => readPlayerIdentity(playerKey(roomCode), localStorage, sessionStorage));
+  const [playerId, setPlayerId] = useState(() => readPlayerIdentity(playerIdKey(roomCode), localStorage, sessionStorage));
   const [artist, setArtist] = useState('');
   const [title, setTitle] = useState('');
   const [formError, setFormError] = useState('');
@@ -395,9 +406,9 @@ function PlayerPage() {
   });
 
   useEffect(() => {
-    setNickname(sessionStorage.getItem(nicknameKey(roomCode)) ?? '');
-    setPlayerToken(sessionStorage.getItem(playerKey(roomCode)) ?? '');
-    setPlayerId(sessionStorage.getItem(playerIdKey(roomCode)) ?? '');
+    setNickname(readPlayerIdentity(nicknameKey(roomCode), localStorage, sessionStorage));
+    setPlayerToken(readPlayerIdentity(playerKey(roomCode), localStorage, sessionStorage));
+    setPlayerId(readPlayerIdentity(playerIdKey(roomCode), localStorage, sessionStorage));
     const storedSubmission = readStoredSubmission(roomCode);
     setAnswerResult(storedSubmission?.result ?? null);
     setSubmittedRound(storedSubmission?.roundNumber ?? null);
@@ -435,17 +446,23 @@ function PlayerPage() {
     const clean = nickname.trim();
     if (!clean || clean.length > 24) { setFormError('Choisis un pseudo de 1 à 24 caractères.'); return; }
     setFormError('');
-    joinRoom.mutate({ roomCode, data: { nickname: clean } }, {
+    joinRoom.mutate({
+      roomCode,
+      data: { nickname: clean, ...(playerToken ? { playerToken } : {}) },
+    }, {
       onSuccess: (result) => {
-        sessionStorage.setItem(playerKey(roomCode), result.playerToken);
-        sessionStorage.setItem(nicknameKey(roomCode), clean);
-        const joinedPlayer = [...(result.session.players ?? [])].reverse().find((player) => player.nickname === clean);
+        storePlayerIdentity(playerKey(roomCode), result.playerToken, localStorage, sessionStorage);
+        const joinedPlayer = [...(result.session.players ?? [])].reverse().find(
+          (player) => normalizeNickname(player.nickname) === normalizeNickname(clean),
+        );
+        const registeredNickname = joinedPlayer?.nickname ?? clean;
+        storePlayerIdentity(nicknameKey(roomCode), registeredNickname, localStorage, sessionStorage);
         if (joinedPlayer) {
-          sessionStorage.setItem(playerIdKey(roomCode), joinedPlayer.id);
+          storePlayerIdentity(playerIdKey(roomCode), joinedPlayer.id, localStorage, sessionStorage);
           setPlayerId(joinedPlayer.id);
         }
         setPlayerToken(result.playerToken);
-        setNickname(clean);
+        setNickname(registeredNickname);
         void queryClient.invalidateQueries({ queryKey });
       },
       onError: (error) => setFormError(errorMessage(error)),

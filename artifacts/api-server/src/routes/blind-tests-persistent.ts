@@ -36,6 +36,7 @@ import {
   SubmitBlindTestAnswerResponse,
   type ApiTypes,
 } from "@workspace/api-zod";
+import { decidePlayerJoin } from "./player-join";
 
 const router: IRouter = Router();
 const roomAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -261,10 +262,13 @@ router.post(
       return;
     }
 
-    const playerToken = randomUUID();
+    const playerToken = parsedBody.data.playerToken ?? randomUUID();
+    const candidateTokenHash = tokenHash(playerToken);
     const playerId = randomUUID();
     const joinedAt = new Date();
-    const result = await db.transaction<RouteResult<null>>(async (tx) => {
+    const result = await db.transaction<
+      RouteResult<{ playerToken: string; rejoined: boolean }>
+    >(async (tx) => {
       const [session] = await tx
         .select()
         .from(blindTestSessionsTable)
@@ -279,15 +283,51 @@ router.post(
       }
 
       const players = await tx
-        .select({ nicknameKey: blindTestPlayersTable.nicknameKey })
+        .select({
+          id: blindTestPlayersTable.id,
+          nickname: blindTestPlayersTable.nickname,
+          nicknameKey: blindTestPlayersTable.nicknameKey,
+          playerTokenHash: blindTestPlayersTable.playerTokenHash,
+        })
         .from(blindTestPlayersTable)
         .where(eq(blindTestPlayersTable.roomCode, roomCode));
       const nicknameKey = normalizeAnswer(nickname);
-      if (players.some((player) => player.nicknameKey === nicknameKey)) {
+      const decision = decidePlayerJoin(
+        players,
+        nicknameKey,
+        parsedBody.data.playerToken === undefined
+          ? undefined
+          : candidateTokenHash,
+      );
+      if (decision.kind === "nickname-taken") {
         return {
           ok: false,
           status: 409,
           error: "Ce pseudo est déjà pris dans cette salle.",
+        };
+      }
+      if (decision.kind === "invalid-token") {
+        return {
+          ok: false,
+          status: 401,
+          error: "La session joueur n’est plus valide. Rejoins la salle à nouveau.",
+        };
+      }
+      if (decision.kind === "nickname-mismatch") {
+        return {
+          ok: false,
+          status: 409,
+          error: "Ce jeton correspond à un autre pseudo dans cette salle.",
+        };
+      }
+      if (decision.kind === "rejoin") {
+        await tx
+          .update(blindTestPlayersTable)
+          .set({ lastSeenAt: joinedAt })
+          .where(eq(blindTestPlayersTable.id, decision.player.id));
+        return {
+          ok: true,
+          value: { playerToken, rejoined: true },
         };
       }
 
@@ -296,12 +336,15 @@ router.post(
         roomCode,
         nickname,
         nicknameKey,
-        playerTokenHash: tokenHash(playerToken),
+        playerTokenHash: candidateTokenHash,
         joinedAt,
         lastSeenAt: joinedAt,
         score: 0,
       });
-      return { ok: true, value: null };
+      return {
+        ok: true,
+        value: { playerToken, rejoined: false },
+      };
     });
 
     if (!result.ok) {
@@ -313,8 +356,11 @@ router.post(
       res.status(404).json({ error: "Cette salle n’existe plus." });
       return;
     }
-    res.status(201).json(
-      JoinBlindTestResponse.parse({ session, playerToken }),
+    res.status(result.value.rejoined ? 200 : 201).json(
+      JoinBlindTestResponse.parse({
+        session,
+        playerToken: result.value.playerToken,
+      }),
     );
   },
 );
