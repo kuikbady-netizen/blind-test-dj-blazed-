@@ -37,6 +37,7 @@ import {
   type ApiTypes,
 } from "@workspace/api-zod";
 import { decidePlayerJoin } from "./player-join";
+import { pointsForAnswer } from "./answer-scoring";
 
 const router: IRouter = Router();
 const roomAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -598,10 +599,7 @@ router.post(
           normalizeAnswer(artist) === normalizeAnswer(currentRound.artist)) &&
         (!title ||
           normalizeAnswer(title) === normalizeAnswer(currentRound.title));
-      const correctAnswers = currentRound.answers.filter(
-        (answer) => answer.correct,
-      ).length;
-      const points = correct ? Math.max(100, 1000 - correctAnswers * 100) : 0;
+      const points = pointsForAnswer(correct);
       const answer: StoredBlindTestAnswer = {
         id: randomUUID(),
         playerId: player.id,
